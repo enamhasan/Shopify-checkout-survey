@@ -1,59 +1,128 @@
 import {
   reactExtension,
-  Banner,
   BlockStack,
-  Checkbox,
+  View,
+  Heading,
   Text,
-  useApi,
-  useApplyAttributeChange,
-  useInstructions,
-  useTranslate,
-} from "@shopify/ui-extensions-react/checkout";
+  ChoiceList,
+  Choice,
+  Button,
+  useStorage,
+} from '@shopify/ui-extensions-react/checkout';
+import { useState, useEffect, useCallback } from 'react';
 
-// 1. Choose an extension target
-export default reactExtension("purchase.checkout.block.render", () => (
-  <Extension />
-));
+// Allow the attribution survey to display on the thank you page.
+const thankYouBlock = reactExtension(
+  "purchase.thank-you.block.render",
+  () => <Attribution />
+);
+export { thankYouBlock };
 
-function Extension() {
-  const translate = useTranslate();
-  const { extension } = useApi();
-  const instructions = useInstructions();
-  const applyAttributeChange = useApplyAttributeChange();
+function Attribution() {
+  const [attribution, setAttribution] = useState('');
+  const [loading, setLoading] = useState(false);
+  // Store into local storage if the attribution survey was completed by the customer.
+  const [attributionSubmitted, setAttributionSubmitted] = useStorageState(
+    'attribution-submitted'
+  );
 
+  async function handleSubmit() {
+    // Simulate a server request
+    setLoading(true);
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log('Submitted:', attribution);
+        setLoading(false);
+        setAttributionSubmitted(true);
+        resolve();
+      }, 750);
+    });
+  }
 
-  // 2. Check instructions for feature availability, see https://shopify.dev/docs/api/checkout-ui-extensions/apis/cart-instructions for details
-  if (!instructions.attributes.canUpdateAttributes) {
-    // For checkouts such as draft order invoices, cart attributes may not be allowed
-    // Consider rendering a fallback UI or nothing at all, if the feature is unavailable
+  // Hides the survey if the attribution has already been submitted
+  if (attributionSubmitted.loading || attributionSubmitted.data === true) {
+    return null;
+  }
+
+  return (
+    <Survey
+      title="How did you hear about us?"
+      onSubmit={handleSubmit}
+      loading={loading}
+    >
+      <ChoiceList
+        name="sale-attribution"
+        value={attribution}
+        onChange={setAttribution}
+      >
+        <BlockStack>
+          <Choice id="Online">TV</Choice>
+          <Choice id="Friends">Podcast</Choice>
+          <Choice id="Family">From a friend or family member</Choice>
+          <Choice id="Other">Tiktok</Choice>
+        </BlockStack>
+      </ChoiceList>
+    </Survey>
+  );
+}
+
+function Survey({ title, onSubmit, children, loading }) {
+  const [submitted, setSubmitted] = useState(false);
+
+  async function handleSubmit() {
+    await onSubmit();
+    setSubmitted(true);
+  }
+
+  if (submitted) {
     return (
-      <Banner title="checkoutSurvey" status="warning">
-        {translate("attributeChangesAreNotSupported")}
-      </Banner>
+      <View border="base" padding="base" borderRadius="base">
+        <BlockStack>
+          <Heading>Thanks for your feedback!</Heading>
+          <Text>Your response has been submitted.</Text>
+        </BlockStack>
+      </View>
     );
   }
 
-  // 3. Render a UI
   return (
-    <BlockStack border={"dotted"} padding={"tight"}>
-      <Banner title="checkoutSurvey">
-        {translate("Hello welcome", {
-          target: <Text emphasis="italic">{extension.target}</Text>,
-        })}
-      </Banner>
-      <Checkbox onChange={onCheckboxChange}>
-        {translate("iWouldLikeAFreeGiftWithMyOrder")}
-      </Checkbox>
-    </BlockStack>
+    <View border="base" padding="base" borderRadius="base">
+      <BlockStack>
+        <Heading>{title}</Heading>
+        {children}
+        <Button kind="secondary" onPress={handleSubmit} loading={loading}>
+          Submit feedback
+        </Button>
+      </BlockStack>
+    </View>
+  );
+}
+
+/**
+ * Returns a piece of state that is persisted in local storage, and a function to update it.
+ * The state returned contains a `data` property with the value, and a `loading` property that is true while the value is being fetched from storage.
+ */
+function useStorageState(key) {
+  const storage = useStorage();
+  const [data, setData] = useState();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function queryStorage() {
+      const value = await storage.read(key);
+      setData(value);
+      setLoading(false);
+    }
+
+    queryStorage();
+  }, [setData, setLoading, storage, key]);
+
+  const setStorage = useCallback(
+    (value) => {
+      storage.write(key, value);
+    },
+    [storage, key]
   );
 
-  async function onCheckboxChange(isChecked) {
-    // 4. Call the API to modify checkout
-    const result = await applyAttributeChange({
-      key: "requestedFreeGift",
-      type: "updateAttribute",
-      value: isChecked ? "yes" : "no",
-    });
-    console.log("applyAttributeChange result", result);
-  }
+  return [{ data, loading }, setStorage];
 }
