@@ -1,128 +1,49 @@
+import React from "react";
 import {
   reactExtension,
+  useSettings,
   BlockStack,
-  View,
-  Heading,
-  Text,
   ChoiceList,
   Choice,
+  Heading,
   Button,
-  useStorage,
-} from '@shopify/ui-extensions-react/checkout';
-import { useState, useEffect, useCallback } from 'react';
+} from "@shopify/ui-extensions-react/checkout";
 
-// Allow the attribution survey to display on the thank you page.
-const thankYouBlock = reactExtension(
-  "purchase.thank-you.block.render",
-  () => <Attribution />
-);
-export { thankYouBlock };
+// Define the extension entry point
+export default reactExtension("purchase.thank-you.block.render", () => <SurveyApp />);
 
-function Attribution() {
-  const [attribution, setAttribution] = useState('');
-  const [loading, setLoading] = useState(false);
-  // Store into local storage if the attribution survey was completed by the customer.
-  const [attributionSubmitted, setAttributionSubmitted] = useStorageState(
-    'attribution-submitted'
-  );
+function SurveyApp() {
+  // Retrieve settings using the useSettings hook
+  const { survey_title: surveyTitle, survey_choices: surveyChoices } = useSettings();
 
-  async function handleSubmit() {
-    // Simulate a server request
-    setLoading(true);
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log('Submitted:', attribution);
-        setLoading(false);
-        setAttributionSubmitted(true);
-        resolve();
-      }, 750);
-    });
-  }
+  // Use default values if no settings are provided
+  const title = surveyTitle || "How did you hear about us?";
+  const choices = surveyChoices ? surveyChoices.split("\n") : ["TV", "Podcast", "From a friend or family member", "Tiktok"];
 
-  // Hides the survey if the attribution has already been submitted
-  if (attributionSubmitted.loading || attributionSubmitted.data === true) {
-    return null;
-  }
+  const [selectedChoice, setSelectedChoice] = React.useState("");
+
+  const handleSubmit = () => {
+    console.log("Selected Choice:", selectedChoice);
+    // Add any additional submission logic here (e.g., API call)
+  };
 
   return (
-    <Survey
-      title="How did you hear about us?"
-      onSubmit={handleSubmit}
-      loading={loading}
-    >
+    <BlockStack>
+      <Heading>{title}</Heading>
       <ChoiceList
-        name="sale-attribution"
-        value={attribution}
-        onChange={setAttribution}
+        name="survey"
+        value={selectedChoice}
+        onChange={setSelectedChoice}
       >
-        <BlockStack>
-          <Choice id="Online">TV</Choice>
-          <Choice id="Friends">Podcast</Choice>
-          <Choice id="Family">From a friend or family member</Choice>
-          <Choice id="Other">Tiktok</Choice>
-        </BlockStack>
+        {choices.map((choice, index) => (
+          <Choice key={index} id={`choice-${index}`} value={choice}>
+            {choice}
+          </Choice>
+        ))}
       </ChoiceList>
-    </Survey>
+      <Button kind="secondary" onPress={handleSubmit}>
+        Submit
+      </Button>
+    </BlockStack>
   );
-}
-
-function Survey({ title, onSubmit, children, loading }) {
-  const [submitted, setSubmitted] = useState(false);
-
-  async function handleSubmit() {
-    await onSubmit();
-    setSubmitted(true);
-  }
-
-  if (submitted) {
-    return (
-      <View border="base" padding="base" borderRadius="base">
-        <BlockStack>
-          <Heading>Thanks for your feedback!</Heading>
-          <Text>Your response has been submitted.</Text>
-        </BlockStack>
-      </View>
-    );
-  }
-
-  return (
-    <View border="base" padding="base" borderRadius="base">
-      <BlockStack>
-        <Heading>{title}</Heading>
-        {children}
-        <Button kind="secondary" onPress={handleSubmit} loading={loading}>
-          Submit feedback
-        </Button>
-      </BlockStack>
-    </View>
-  );
-}
-
-/**
- * Returns a piece of state that is persisted in local storage, and a function to update it.
- * The state returned contains a `data` property with the value, and a `loading` property that is true while the value is being fetched from storage.
- */
-function useStorageState(key) {
-  const storage = useStorage();
-  const [data, setData] = useState();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function queryStorage() {
-      const value = await storage.read(key);
-      setData(value);
-      setLoading(false);
-    }
-
-    queryStorage();
-  }, [setData, setLoading, storage, key]);
-
-  const setStorage = useCallback(
-    (value) => {
-      storage.write(key, value);
-    },
-    [storage, key]
-  );
-
-  return [{ data, loading }, setStorage];
 }

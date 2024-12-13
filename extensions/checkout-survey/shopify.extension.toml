@@ -49,9 +49,15 @@ api_access = true
 # your extension. Learn more:
 # https://shopify.dev/docs/api/checkout-ui-extensions/unstable/configuration#settings-definition
 
-# [extensions.settings]
-# [[extensions.settings.fields]]
-# key = "banner_title"
-# type = "single_line_text_field"
-# name = "Banner title"
-# description = "Enter a title for the banner"
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "survey_title"
+type = "single_line_text_field"
+name = "Survey Title"
+description = "Enter the title for the survey question"
+
+[[extensions.settings.fields]]
+key = "survey_choices"
+type = "multi_line_text_field"
+name = "Survey Choices"
+description = "Enter the choices for the survey, one per line"
