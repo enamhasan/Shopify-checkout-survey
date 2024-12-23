@@ -4,6 +4,8 @@
 
 # Dependency directory
 node_modules
+package-lock.json
+package.json
 
 # Test coverage directory
 coverage
@@ -27,3 +29,6 @@ extensions/*/dist
 # Ignore shopify files created during app dev
 .shopify/*
 .shopify.lock
+shopify.app.toml
+
+.vscode
